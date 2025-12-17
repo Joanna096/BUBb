@@ -6,35 +6,83 @@ import { Input } from "@/components/ui/input";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogFooter } from "@/components/ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Label } from "@/components/ui/label";
-import { Search, Filter, Phone, MessageCircle, Star, Plus } from 'lucide-react';
+import { Search, Filter, Phone, MessageCircle, Star, Plus, Zap, Copy, Check } from 'lucide-react';
 import { SKILL_OPTIONS, TIME_OPTIONS, type Volunteer, type SkillType, type Availability } from '@/lib/data';
 import { Layout } from '@/components/Layout';
 import { useVolunteers } from '@/context/VolunteerContext';
 import { cn } from '@/lib/utils';
+import { useToast } from '@/hooks/use-toast';
 
 export default function VolunteerList() {
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedSkills, setSelectedSkills] = useState<SkillType[]>([]);
   const [selectedTime, setSelectedTime] = useState<Availability | 'ALL'>('ALL');
+  const [isRecallMode, setIsRecallMode] = useState(false);
+  const [hasCopied, setHasCopied] = useState(false);
   
   const { volunteers, addRecord } = useVolunteers();
+  const { toast } = useToast();
 
   // Filter Logic
   const filteredVolunteers = volunteers.filter(v => {
     const matchesSearch = v.name.includes(searchTerm) || v.phone.includes(searchTerm);
     const matchesTime = selectedTime === 'ALL' || v.availability.includes(selectedTime);
-    const matchesSkills = selectedSkills.length === 0 || selectedSkills.every(skill => 
-      v.skills.some(s => s.type === skill && s.level >= 3) // Assume level 3+ is "competent"
-    );
-    return matchesSearch && matchesTime && matchesSkills;
+    
+    // Recall mode: Skill includes '引導' AND TaskCompletion > 4
+    // Standard mode: Skill filter
+    let matchesSkills = true;
+    let matchesTrust = true;
+
+    if (isRecallMode) {
+       // Force "引導" skill check and high trust
+       matchesSkills = v.skills.some(s => s.type === '引導' && s.level >= 3);
+       matchesTrust = v.trustMetrics.taskCompletion > 4;
+    } else {
+       matchesSkills = selectedSkills.length === 0 || selectedSkills.every(skill => 
+        v.skills.some(s => s.type === skill && s.level >= 3)
+      );
+    }
+
+    return matchesSearch && matchesTime && matchesSkills && matchesTrust;
   });
 
   const toggleSkill = (skill: SkillType) => {
+    if (isRecallMode) return; // Disable manual toggle in recall mode
     if (selectedSkills.includes(skill)) {
       setSelectedSkills(selectedSkills.filter(s => s !== skill));
     } else {
       setSelectedSkills([...selectedSkills, skill]);
     }
+  };
+
+  const toggleRecallMode = () => {
+    if (!isRecallMode) {
+      // Activate Recall Mode
+      setIsRecallMode(true);
+      setSelectedSkills(['引導']); // Visually select '引導'
+      setSearchTerm('');
+      setSelectedTime('ALL');
+      toast({
+        title: "召回模式已啟動",
+        description: "已篩選出：信任指標 > 4分 且 具備引導能力 的志工",
+      });
+    } else {
+      // Deactivate Recall Mode
+      setIsRecallMode(false);
+      setSelectedSkills([]);
+    }
+  };
+
+  const invitationMessage = `【志工召集令】\n親愛的夥伴您好！\n\n由於您在過往活動中表現優異（信任評分 > 4.0），且具備專業的引導能力，我們誠摯邀請您支援本次的重要活動。\n\n期待您的加入！\n活動團隊 敬上`;
+
+  const copyInvitation = () => {
+    navigator.clipboard.writeText(invitationMessage);
+    setHasCopied(true);
+    toast({
+      title: "複製成功",
+      description: "邀請訊息已複製到剪貼簿",
+    });
+    setTimeout(() => setHasCopied(false), 2000);
   };
 
   return (
@@ -53,7 +101,10 @@ export default function VolunteerList() {
         </div>
 
         {/* Search & Filters */}
-        <Card className="border-none shadow-sm bg-white/80 backdrop-blur-sm">
+        <Card className={cn(
+          "border-none shadow-sm backdrop-blur-sm transition-all duration-300",
+          isRecallMode ? "bg-amber-50 ring-1 ring-amber-200" : "bg-white/80"
+        )}>
           <CardContent className="p-6 space-y-4">
             <div className="flex flex-col md:flex-row gap-4">
               <div className="relative flex-1">
@@ -63,9 +114,14 @@ export default function VolunteerList() {
                   className="pl-9 border-slate-200 focus:ring-indigo-500" 
                   value={searchTerm}
                   onChange={(e) => setSearchTerm(e.target.value)}
+                  disabled={isRecallMode}
                 />
               </div>
-              <Select value={selectedTime} onValueChange={(val: any) => setSelectedTime(val)}>
+              <Select 
+                value={selectedTime} 
+                onValueChange={(val: any) => setSelectedTime(val)}
+                disabled={isRecallMode}
+              >
                 <SelectTrigger className="w-[180px] border-slate-200">
                   <SelectValue placeholder="選擇服務時段" />
                 </SelectTrigger>
@@ -78,37 +134,66 @@ export default function VolunteerList() {
               </Select>
             </div>
 
-            <div className="flex flex-wrap gap-2 items-center">
-              <span className="text-sm font-medium text-slate-600 mr-2 flex items-center gap-1">
-                <Filter className="w-4 h-4" />
-                能力篩選:
-              </span>
-              {SKILL_OPTIONS.map(skill => (
-                <Badge 
-                  key={skill}
-                  variant={selectedSkills.includes(skill) ? "default" : "outline"}
-                  className={cn(
-                    "cursor-pointer transition-all hover:scale-105",
-                    selectedSkills.includes(skill) 
-                      ? "bg-indigo-600 hover:bg-indigo-700 border-indigo-600" 
-                      : "hover:bg-indigo-50 hover:text-indigo-600 hover:border-indigo-200 bg-white"
-                  )}
-                  onClick={() => toggleSkill(skill)}
-                >
-                  {skill}
-                </Badge>
-              ))}
-              {selectedSkills.length > 0 && (
-                <Button 
-                  variant="ghost" 
-                  size="sm" 
-                  onClick={() => setSelectedSkills([])}
-                  className="text-xs text-slate-400 hover:text-slate-600"
-                >
-                  清除
-                </Button>
-              )}
+            <div className="flex flex-wrap items-center justify-between gap-4">
+              <div className="flex flex-wrap gap-2 items-center">
+                <span className="text-sm font-medium text-slate-600 mr-2 flex items-center gap-1">
+                  <Filter className="w-4 h-4" />
+                  能力篩選:
+                </span>
+                {SKILL_OPTIONS.map(skill => (
+                  <Badge 
+                    key={skill}
+                    variant={(selectedSkills.includes(skill) || (isRecallMode && skill === '引導')) ? "default" : "outline"}
+                    className={cn(
+                      "cursor-pointer transition-all",
+                      (selectedSkills.includes(skill) || (isRecallMode && skill === '引導'))
+                        ? "bg-indigo-600 hover:bg-indigo-700 border-indigo-600" 
+                        : "hover:bg-indigo-50 hover:text-indigo-600 hover:border-indigo-200 bg-white",
+                      isRecallMode && skill !== '引導' && "opacity-50 cursor-not-allowed"
+                    )}
+                    onClick={() => toggleSkill(skill)}
+                  >
+                    {skill}
+                  </Badge>
+                ))}
+              </div>
+
+              <Button 
+                variant={isRecallMode ? "default" : "outline"}
+                className={cn(
+                  "gap-2 transition-all shadow-sm",
+                  isRecallMode 
+                    ? "bg-amber-500 hover:bg-amber-600 border-amber-500 text-white" 
+                    : "border-amber-200 text-amber-700 hover:bg-amber-50 hover:text-amber-800"
+                )}
+                onClick={toggleRecallMode}
+              >
+                <Zap className={cn("w-4 h-4", isRecallMode && "fill-current")} />
+                {isRecallMode ? "關閉召回模式" : "一鍵召回：優質引導志工"}
+              </Button>
             </div>
+            
+            {/* Invitation Message Section (Only in Recall Mode) */}
+            {isRecallMode && filteredVolunteers.length > 0 && (
+              <div className="mt-4 pt-4 border-t border-amber-200/50 animate-in slide-in-from-top-2">
+                <div className="bg-white rounded-lg p-4 border border-amber-100 shadow-sm flex flex-col md:flex-row gap-4 items-start md:items-center justify-between">
+                   <div className="flex-1 space-y-1">
+                      <h3 className="font-semibold text-amber-900 flex items-center gap-2">
+                        <MessageCircle className="w-4 h-4" />
+                        公版邀請訊息
+                      </h3>
+                      <p className="text-sm text-slate-600 whitespace-pre-wrap font-mono bg-slate-50 p-2 rounded border border-slate-100">
+                        {invitationMessage}
+                      </p>
+                   </div>
+                   <Button onClick={copyInvitation} className="shrink-0 gap-2 bg-slate-900 text-white hover:bg-slate-800">
+                     {hasCopied ? <Check className="w-4 h-4" /> : <Copy className="w-4 h-4" />}
+                     {hasCopied ? "已複製" : "複製訊息"}
+                   </Button>
+                </div>
+              </div>
+            )}
+
           </CardContent>
         </Card>
 
@@ -130,7 +215,12 @@ export default function VolunteerList() {
               <p>沒有找到符合條件的志工</p>
               <Button 
                 variant="link" 
-                onClick={() => {setSearchTerm(''); setSelectedSkills([]); setSelectedTime('ALL');}}
+                onClick={() => {
+                  setSearchTerm(''); 
+                  setSelectedSkills([]); 
+                  setSelectedTime('ALL');
+                  setIsRecallMode(false);
+                }}
               >
                 清除所有篩選條件
               </Button>
