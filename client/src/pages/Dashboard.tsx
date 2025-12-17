@@ -1,19 +1,23 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Layout } from '@/components/Layout';
-import { MOCK_VOLUNTEERS } from '@/lib/data';
+import { useVolunteers } from '@/context/VolunteerContext';
 import { Users, UserCheck, TrendingUp, Clock } from 'lucide-react';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart, Pie, Cell } from 'recharts';
 import { cn } from '@/lib/utils';
 
 export default function Dashboard() {
-  const totalVolunteers = MOCK_VOLUNTEERS.length;
-  const avgTrust = (MOCK_VOLUNTEERS.reduce((acc, curr) => acc + curr.trustMetrics.punctuality, 0) / totalVolunteers).toFixed(1);
-  const totalReviews = MOCK_VOLUNTEERS.reduce((acc, curr) => acc + curr.trustMetrics.reviews, 0);
+  const { volunteers } = useVolunteers();
+  
+  const totalVolunteers = volunteers.length;
+  const avgTrust = totalVolunteers > 0 
+    ? (volunteers.reduce((acc, curr) => acc + curr.trustMetrics.punctuality, 0) / totalVolunteers).toFixed(1)
+    : "0";
+  const totalReviews = volunteers.reduce((acc, curr) => acc + curr.trustMetrics.reviews, 0);
 
   // Skill Distribution Data
   const skillCounts: Record<string, number> = {};
-  MOCK_VOLUNTEERS.forEach(v => {
+  volunteers.forEach(v => {
     v.skills.forEach(s => {
       skillCounts[s.type] = (skillCounts[s.type] || 0) + 1;
     });
@@ -23,7 +27,7 @@ export default function Dashboard() {
 
   // Availability Distribution
   const availabilityCounts: Record<string, number> = { '平日': 0, '週末': 0 };
-  MOCK_VOLUNTEERS.forEach(v => {
+  volunteers.forEach(v => {
     v.availability.forEach(a => {
       if (a.includes('平日')) availabilityCounts['平日']++;
       if (a.includes('週末')) availabilityCounts['週末']++;

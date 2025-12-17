@@ -6,19 +6,18 @@ import { Input } from "@/components/ui/input";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogFooter } from "@/components/ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Label } from "@/components/ui/label";
-import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Search, Filter, Phone, MessageCircle, Star, Calendar, Plus, ChevronRight, CheckCircle2 } from 'lucide-react';
-import { MOCK_VOLUNTEERS, SKILL_OPTIONS, TIME_OPTIONS, type Volunteer, type SkillType, type Availability } from '@/lib/data';
+import { Search, Filter, Phone, MessageCircle, Star, Plus } from 'lucide-react';
+import { SKILL_OPTIONS, TIME_OPTIONS, type Volunteer, type SkillType, type Availability } from '@/lib/data';
 import { Layout } from '@/components/Layout';
-import { useToast } from '@/hooks/use-toast';
+import { useVolunteers } from '@/context/VolunteerContext';
 import { cn } from '@/lib/utils';
 
 export default function VolunteerList() {
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedSkills, setSelectedSkills] = useState<SkillType[]>([]);
   const [selectedTime, setSelectedTime] = useState<Availability | 'ALL'>('ALL');
-  const [volunteers, setVolunteers] = useState(MOCK_VOLUNTEERS);
-  const { toast } = useToast();
+  
+  const { volunteers, addRecord } = useVolunteers();
 
   // Filter Logic
   const filteredVolunteers = volunteers.filter(v => {
@@ -36,31 +35,6 @@ export default function VolunteerList() {
     } else {
       setSelectedSkills([...selectedSkills, skill]);
     }
-  };
-
-  const handleAddRecord = (volunteerId: string, event: string, role: string) => {
-    setVolunteers(prev => prev.map(v => {
-      if (v.id === volunteerId) {
-        return {
-          ...v,
-          history: [...v.history, { 
-            id: Math.random().toString(), 
-            eventName: event, 
-            role: role, 
-            date: new Date().toISOString().split('T')[0] 
-          }],
-          trustMetrics: {
-            ...v.trustMetrics,
-            reviews: v.trustMetrics.reviews + 1
-          }
-        };
-      }
-      return v;
-    }));
-    toast({
-      title: "紀錄已新增",
-      description: "成功新增一筆活動參與紀錄",
-    });
   };
 
   return (
@@ -144,7 +118,7 @@ export default function VolunteerList() {
             <VolunteerCard 
               key={volunteer.id} 
               volunteer={volunteer} 
-              onAddRecord={handleAddRecord}
+              onAddRecord={addRecord}
             />
           ))}
           

@@ -1,6 +1,6 @@
 import React from 'react';
 import { Link, useLocation } from 'wouter';
-import { LayoutDashboard, Users, Settings, LogOut } from 'lucide-react';
+import { LayoutDashboard, Users, Settings, LogOut, Upload } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
 interface LayoutProps {
@@ -13,6 +13,7 @@ export function Layout({ children }: LayoutProps) {
   const navItems = [
     { icon: LayoutDashboard, label: '儀表板', href: '/' },
     { icon: Users, label: '志工搜尋', href: '/volunteers' },
+    { icon: Upload, label: '資料匯入', href: '/upload' },
   ];
 
   return (
