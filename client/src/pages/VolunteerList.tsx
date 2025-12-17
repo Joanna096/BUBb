@@ -206,46 +206,61 @@ function VolunteerCard({ volunteer, onAddRecord }: { volunteer: Volunteer, onAdd
         </div>
 
         {/* Action Button */}
-        <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
-          <DialogTrigger asChild>
-            <Button className="w-full mt-2 bg-white text-indigo-600 border border-indigo-200 hover:bg-indigo-50 hover:border-indigo-300">
-              <Plus className="w-4 h-4 mr-2" /> 新增紀錄
+        <div className="flex gap-2 mt-2">
+          {volunteer.lineId ? (
+            <Button 
+              className="flex-1 bg-[#06C755] hover:bg-[#05b34c] text-white border-none"
+              onClick={() => window.open(`https://line.me/R/ti/p/~${volunteer.lineId}`, '_blank')}
+            >
+              <MessageCircle className="w-4 h-4 mr-2" /> 聯絡志工
             </Button>
-          </DialogTrigger>
-          <DialogContent>
-            <DialogHeader>
-              <DialogTitle>新增活動紀錄 - {volunteer.name}</DialogTitle>
-            </DialogHeader>
-            <div className="space-y-4 py-4">
-              <div className="space-y-2">
-                <Label>活動名稱</Label>
-                <Input 
-                  placeholder="例如：2025 新年市集" 
-                  value={newEvent} 
-                  onChange={e => setNewEvent(e.target.value)}
-                />
+          ) : (
+            <Button className="flex-1 bg-slate-100 text-slate-400 border-none cursor-not-allowed" disabled>
+              <MessageCircle className="w-4 h-4 mr-2" /> 無 Line ID
+            </Button>
+          )}
+
+          <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
+            <DialogTrigger asChild>
+              <Button className="flex-1 bg-white text-indigo-600 border border-indigo-200 hover:bg-indigo-50 hover:border-indigo-300">
+                <Plus className="w-4 h-4 mr-2" /> 新增紀錄
+              </Button>
+            </DialogTrigger>
+            <DialogContent>
+              <DialogHeader>
+                <DialogTitle>新增活動紀錄 - {volunteer.name}</DialogTitle>
+              </DialogHeader>
+              <div className="space-y-4 py-4">
+                <div className="space-y-2">
+                  <Label>活動名稱</Label>
+                  <Input 
+                    placeholder="例如：2025 新年市集" 
+                    value={newEvent} 
+                    onChange={e => setNewEvent(e.target.value)}
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label>擔任角色</Label>
+                  <Select value={newRole} onValueChange={setNewRole}>
+                    <SelectTrigger>
+                      <SelectValue placeholder="選擇角色" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="引導人員">引導人員</SelectItem>
+                      <SelectItem value="行政協助">行政協助</SelectItem>
+                      <SelectItem value="機動支援">機動支援</SelectItem>
+                      <SelectItem value="攝影紀錄">攝影紀錄</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
               </div>
-              <div className="space-y-2">
-                <Label>擔任角色</Label>
-                <Select value={newRole} onValueChange={setNewRole}>
-                  <SelectTrigger>
-                    <SelectValue placeholder="選擇角色" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="引導人員">引導人員</SelectItem>
-                    <SelectItem value="行政協助">行政協助</SelectItem>
-                    <SelectItem value="機動支援">機動支援</SelectItem>
-                    <SelectItem value="攝影紀錄">攝影紀錄</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-            </div>
-            <DialogFooter>
-              <Button variant="outline" onClick={() => setIsDialogOpen(false)}>取消</Button>
-              <Button onClick={handleSubmit} disabled={!newEvent || !newRole}>確認新增</Button>
-            </DialogFooter>
-          </DialogContent>
-        </Dialog>
+              <DialogFooter>
+                <Button variant="outline" onClick={() => setIsDialogOpen(false)}>取消</Button>
+                <Button onClick={handleSubmit} disabled={!newEvent || !newRole}>確認新增</Button>
+              </DialogFooter>
+            </DialogContent>
+          </Dialog>
+        </div>
       </CardContent>
     </Card>
   );
