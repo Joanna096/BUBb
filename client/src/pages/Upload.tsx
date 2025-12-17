@@ -7,6 +7,7 @@ import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { useVolunteers } from '@/context/VolunteerContext';
 import * as XLSX from 'xlsx';
 import { type Volunteer, type SkillType, type Availability } from '@/lib/data';
+import { cn } from '@/lib/utils';
 
 export default function Upload() {
   const [isDragging, setIsDragging] = useState(false);
