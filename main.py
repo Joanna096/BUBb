@@ -48,7 +48,7 @@ def load_data():
 df = load_data()
 
 # 5. 側邊欄導覽
-st.sidebar.title("💜 志工池管理")
+st.sidebar.title(" 志工池管理")
 menu = st.sidebar.radio("功能選單", ["📊 經營儀表板", "👥 志工搜尋", "📥 資料匯入"])
 
 if st.sidebar.button("安全登出"):
