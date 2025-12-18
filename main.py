@@ -3,13 +3,22 @@ import pandas as pd
 import os
 
 # 1. 頁面配置
-st.set_page_config(page_title="志工池經營看板", layout="wide", initial_sidebar_state="expanded")
+st.set_page_config(page_title="志工池經營系統", layout="wide", initial_sidebar_state="expanded")
 
-# 2. CSS 優化 (美化儀表板卡片)
+# 2. 簡潔樣式設定 (確保指標文字清晰可見)
 st.markdown("""
     <style>
-    .stMetric { background-color: #ffffff; padding: 15px; border-radius: 10px; box-shadow: 0 2px 4px rgba(0,0,0,0.05); border: 1px solid #eee; }
-    [data-testid="stMetricValue"] { color: #6366f1; }
+    [data-testid="stMetric"] {
+        background-color: #f8f9fa;
+        padding: 20px;
+        border-radius: 8px;
+        border: 1px solid #dee2e6;
+    }
+    [data-testid="stMetricLabel"] {
+        font-size: 1.2rem !important;
+        font-weight: bold !important;
+        color: #333333 !important;
+    }
     </style>
     """, unsafe_allow_html=True)
 
@@ -18,105 +27,115 @@ if "authenticated" not in st.session_state:
     st.session_state.authenticated = False
 
 if not st.session_state.authenticated:
-    st.title("🛡️ 志工池管理系統")
-    pwd = st.text_input("管理員密碼", type="password")
-    if st.button("登入系統", use_container_width=True):
+    st.markdown("## **管理系統登入**")
+    pwd = st.text_input("輸入管理員密碼", type="password")
+    if st.button("登入", use_container_width=True):
         if pwd == "volunteer2025":
             st.session_state.authenticated = True
             st.rerun()
     st.stop()
 
-# 4. 資料載入與欄位自動對齊 (核心修復邏輯)
+# 4. 資料處理核心 (解決匯入與欄位問題)
 DB_FILE = "volunteer_data.csv"
 
+@st.cache_data
 def load_data():
     if os.path.exists(DB_FILE):
         try:
             temp_df = pd.read_csv(DB_FILE)
-            # 修復欄位名稱可能的空格問題
             temp_df.columns = [c.strip() for c in temp_df.columns]
-            
-            # 檢查並補全缺失欄位，防止 KeyError
-            required_cols = ["姓名", "電話", "Line ID", "服務時段", "引導", "行政", "體力", "應變", "準時率", "信任度", "評價備註"]
-            for col in required_cols:
+            # 確保必要欄位存在
+            req_cols = ["姓名", "電話", "Line ID", "服務時段", "引導", "行政", "體力", "應變", "準時率", "信任度"]
+            for col in req_cols:
                 if col not in temp_df.columns:
-                    # 數字型欄位補 0，文字型補 "未提供"
-                    temp_df[col] = 0 if col in ["引導", "行政", "體力", "應變", "信任度"] else "未提供"
+                    temp_df[col] = 0 if col in ["引導", "行政", "體力", "應變", "信任度"] else "無"
             return temp_df
-        except Exception as e:
-            st.error(f"資料讀取錯誤: {e}")
-            
-    # 若檔案不存在，生成 100 筆模擬資料供測試
-    import random
-    data = []
-    names = ["張", "林", "王", "李", "陳", "黃", "周", "吳"]
-    last_names = ["大明", "小花", "志強", "美玲", "阿和", "淑芬"]
-    for i in range(100):
-        data.append({
-            "姓名": random.choice(names) + random.choice(last_names),
-            "電話": f"0912-{random.randint(100,999)}-{random.randint(100,999)}",
-            "Line ID": f"id_{random.randint(1000,9999)}",
-            "服務時段": random.choice(["平日", "週末", "全天"]),
-            "引導": random.randint(1,5), "行政": random.randint(1,5), 
-            "體力": random.randint(1,5), "應變": random.randint(1,5),
-            "準時率": f"{random.randint(80,100)}%", "信任度": round(random.uniform(3.0, 5.0), 1),
-            "評價備註": "系統自動生成"
-        })
-    df_init = pd.DataFrame(data)
-    df_init.to_csv(DB_FILE, index=False, encoding="utf-8-sig")
-    return df_init
+        except:
+            return pd.DataFrame()
+    return pd.DataFrame()
 
 df = load_data()
 
-# 5. 側邊欄與導覽
-st.sidebar.title("💜 志工池管理")
-menu = st.sidebar.radio("功能選單", ["📊 經營儀表板", "👥 志工搜尋器", "📥 批次匯入"])
+# 5. 側邊導覽 (消除 Emoji)
+st.sidebar.markdown("### **功能選單**")
+menu = st.sidebar.radio("跳轉至", ["經營儀表板", "志工搜尋器", "批次匯入資料"])
 
 if st.sidebar.button("安全登出"):
     st.session_state.authenticated = False
     st.rerun()
 
-# --- 分頁：經營儀表板 ---
-if menu == "📊 經營儀表板":
-    st.title("📊 經營儀表板")
-    m1, m2, m3, m4 = st.columns(4)
-    m1.metric("總志工人數", len(df))
-    # 安全計算平均信任度
-    avg_trust = pd.to_numeric(df["信任度"], errors='coerce').mean()
-    m2.metric("平均信任度", f"{avg_trust:.1f} ⭐")
-    m3.metric("高信任比例", "75%", "維持高標")
-    m4.metric("本月服務人次", "128 次")
+# --- 分頁 1：經營儀表板 ---
+if menu == "經營儀表板":
+    st.markdown("# **經營儀表板**")
     
-    st.divider()
-    st.subheader("核心能力分佈")
-    skills = ["引導", "行政", "體力", "應變"]
-    avg_skills = [pd.to_numeric(df[s], errors='coerce').mean() for s in skills]
-    st.bar_chart(pd.DataFrame({"能力": skills, "平均等級": avg_skills}), x="能力", y="平均等級", color="#6366f1")
+    if not df.empty:
+        # 指標列
+        m1, m2, m3, m4 = st.columns(4)
+        
+        # 總人數
+        total_count = len(df)
+        m1.metric(label="總志工人數", value=f"{total_count} 人")
+        
+        # 平均信任度 (轉換數字確保顯示)
+        trust_val = pd.to_numeric(df["信任度"], errors='coerce').mean()
+        m2.metric(label="平均信任度", value=f"{trust_val:.1f} 分")
+        
+        # 服務時段統計
+        weekend_count = len(df[df["服務時段"].str.contains("週末", na=False)])
+        m3.metric(label="週末可出勤人數", value=f"{weekend_count} 人")
+        
+        # 高標比例
+        high_trust = len(df[pd.to_numeric(df["信任度"], errors='coerce') >= 4.5])
+        m4.metric(label="優秀志工筆數", value=f"{high_trust} 筆")
+        
+        st.divider()
+        
+        # 核心能力分佈 (改為橫條圖)
+        st.markdown("### **核心能力平均分佈**")
+        skills = ["引導", "行政", "體力", "應變"]
+        avg_values = [pd.to_numeric(df[s], errors='coerce').mean() for s in skills]
+        
+        chart_data = pd.DataFrame({
+            "能力項目": skills,
+            "平均分數": avg_values
+        }).sort_values("平均分數", ascending=True)
+        
+        # 使用 st.bar_chart 但透過 DataFrame 轉置概念或指定橫向
+        # 在 Streamlit 中，最簡單的橫條圖是使用 st.altair_chart 或轉化資料
+        st.bar_chart(chart_data, x="平均分數", y="能力項目", color="#4F46E5")
+    else:
+        st.warning("目前無資料，請先前往批次匯入進行上傳。")
 
-# --- 分頁：志工搜尋器 ---
-elif menu == "👥 志工搜尋器":
-    st.title("👥 志工搜尋器")
-    search_q = st.text_input("🔍 搜尋姓名或電話")
-    f_df = df[df["姓名"].str.contains(search_q) | df["電話"].str.contains(search_q)] if search_q else df
+# --- 分頁 2：志工搜尋器 ---
+elif menu == "志工搜尋器":
+    st.markdown("# **志工搜尋器**")
+    search_q = st.text_input("搜尋關鍵字 (姓名或電話)")
     
-    for i in range(0, len(f_df), 2):
-        cols = st.columns(2)
-        for j in range(2):
-            if i + j < len(f_df):
-                row = f_df.iloc[i + j]
-                with cols[j]:
-                    with st.container(border=True):
-                        st.subheader(f"{row['姓名']} ⭐")
-                        st.write(f"📞 {row['電話']} | 💬 Line ID: {row['Line ID']}")
-                        st.write(f"**能力：** 引導 Lv.{row['引導']} | 體力 Lv.{row['體力']}")
-                        st.link_button(f"🟢 聯絡 {row['姓名']}", f"https://line.me/R/ti/p/~{row['Line ID']}", use_container_width=True)
+    if not df.empty:
+        f_df = df[df["姓名"].str.contains(search_q, na=False) | df["電話"].str.contains(search_q, na=False)] if search_q else df
+        st.markdown(f"找到 **{len(f_df)}** 位符合條件的志工")
+        st.dataframe(f_df, use_container_width=True)
+    else:
+        st.info("請先匯入資料")
 
-# --- 分頁：資料匯入 ---
-elif menu == "📥 批次匯入":
-    st.title("📥 批次匯入")
-    up_file = st.file_uploader("上傳 CSV 檔案", type="csv")
+# --- 分頁 3：批次匯入 (解決無法更新問題) ---
+elif menu == "批次匯入資料":
+    st.markdown("# **批次匯入資料**")
+    st.markdown("請上傳格式正確的 CSV 檔案。上傳後系統將自動覆蓋舊有資料庫。")
+    
+    up_file = st.file_uploader("選擇 CSV 檔案", type="csv")
+    
     if up_file:
-        new_df = pd.read_csv(up_file)
-        new_df.to_csv(DB_FILE, index=False, encoding="utf-8-sig")
-        st.success("匯入成功！請點擊儀表板查看更新。")
-     
+        try:
+            new_df = pd.read_csv(up_file)
+            # 儲存檔案
+            new_df.to_csv(DB_FILE, index=False, encoding="utf-8-sig")
+            
+            # 重要：清除快取，否則儀表板會一直顯示舊資料
+            st.cache_data.clear()
+            
+            st.success("資料已成功更新！現在請切換回「經營儀表板」查看最新結果。")
+            if st.button("立即刷新畫面"):
+                st.rerun()
+        except Exception as e:
+            st.error(f"上傳發生錯誤: {e}")
